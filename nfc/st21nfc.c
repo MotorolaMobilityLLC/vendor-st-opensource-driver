@@ -45,6 +45,7 @@
 #include "st21nfc.h"
 #include "st_uapi.h"
 #include <linux/version.h>
+#include <linux/nvmem-consumer.h>
 
 #ifdef NFC_SECURE_PERIPHERAL_ENABLED
 /*secure library headers*/
@@ -92,6 +93,12 @@ enum st21nfc_power_state {
 	ST21NFC_IDLE = 0,
 	ST21NFC_ACTIVE = 1,
 	ST21NFC_ACTIVE_RW = 2
+};
+
+//NFC BOB1 state
+enum nfc_bob1_state {
+	NFC_BOB1_DISABLE = 0,
+	NFC_BOB1_ENABLE,
 };
 
 static const char *const st21nfc_power_state_name[] = {
@@ -182,7 +189,69 @@ struct st21nfc_device {
 
 	/*secure zone state*/
 	bool secure_zone;
+
+#ifdef CONFIG_NFC_BOB1
+        /* NFC BOB1 nvmem cell*/
+        struct nvmem_cell *nvmem_nfc_bob1_cell;
+#endif
+
 };
+
+#ifdef CONFIG_NFC_BOB1
+void st21nfc_bob1_set(struct st21nfc_device *st21nfc_dev, unsigned char arg)
+{
+	int rc = 0;
+	u8 *buf;
+	size_t len;
+	struct i2c_client *client = st21nfc_dev->client;
+	struct device *dev = &client->dev;
+
+	if (IS_ERR(st21nfc_dev->nvmem_nfc_bob1_cell)) {
+		pr_err("%s: 'nfc_bob1' cell is not avilable to configure\n",
+			__func__);
+		return;
+	}
+
+	rc = nvmem_cell_write(st21nfc_dev->nvmem_nfc_bob1_cell,
+						 &arg,
+						 sizeof(arg));
+	if (rc < 0) {
+		pr_err("%s: Write  nfc boob1 cell failed %d\n",
+			__func__, rc);
+		return;
+	}
+
+	buf = nvmem_cell_read(st21nfc_dev->nvmem_nfc_bob1_cell, &len);
+	if (IS_ERR(buf)) {
+		dev_err(dev, "Failed to read nfc_bob1_cell: %ld\n",
+			PTR_ERR(buf));
+		pr_err("%s: Failed to read (nfc_bob1_cell = %d)\n",
+			__func__, buf[0]);
+		kfree(buf);
+		return;
+	}
+
+	if (buf[0] == arg) {
+		dev_info(dev, "Successfully configured the nfc_bob1_cell\n");
+		pr_info("%s: Successfully configured SDAM BIT (nfc_bob1_cell: %u)\n",
+			__func__, buf[0]);
+	} else {
+		dev_err(dev, "Failed to configure nfc_bob1_cell: %ld\n",
+			PTR_ERR(buf));
+		pr_err("%s: Failed to configure SDAM BIT (nfc_bob1_cell = %u)\n",
+			__func__, buf[0]);
+	}
+	kfree(buf);
+}
+#else
+void st21nfc_bob1_set(struct st21nfc_device *st21nfc_dev, unsigned char arg)
+{
+  // NFC BOB1 not supported
+}
+#endif
+
+
+
 
 #if 0
 /*
@@ -810,7 +879,8 @@ static long st21nfc_dev_ioctl(struct file *filp, unsigned int cmd,
 
 	case ST21NFC_SET_POLARITY_HIGH:
 	case ST21NFC_LEGACY_SET_POLARITY_HIGH:
-		pr_info(" ### ST21NFC_SET_POLARITY_HIGH ###\n");
+		pr_info(" ### ST21NFC_SET_POLARITY_HIGH NFC ON ###\n");
+                st21nfc_bob1_set(st21nfc_dev, (unsigned char)NFC_BOB1_ENABLE);
 #if 0
 		ret = st21nfc_clock_select(st21nfc_dev);
                 if (ret < 0)
@@ -941,8 +1011,11 @@ static long st21nfc_dev_ioctl(struct file *filp, unsigned int cmd,
 		if (enable_debug_log)
 			pr_debug("%s use ESE %d : %d\n", __func__, ret, tmp);
 		break;
-#if 0
+
 	case ST21NFC_CLK_DISABLE_UNPREPARE:
+                pr_info(" ### ST21NFC_CLK_DISABLE_UNPREPARE nfc OFF ###\n");
+                st21nfc_bob1_set(st21nfc_dev, (unsigned char)NFC_BOB1_DISABLE);
+#if 0
                 ret = st21nfc_clock_deselect(st21nfc_dev);
                 if (ret < 0) {
                         pr_err("%s : st21nfc_clock_deselect failed\n", __func__);
@@ -951,8 +1024,9 @@ static long st21nfc_dev_ioctl(struct file *filp, unsigned int cmd,
                         wakeup_source_unregister(st21nfc_dev->irq_wakeup_source);
                         st21nfc_dev->irq_wakeup_source = NULL;
                }
-               break;
 #endif
+               break;
+
 
 #ifdef NFC_SECURE_PERIPHERAL_ENABLED
 	case NFC_SECURE_ZONE:
@@ -1474,6 +1548,15 @@ static int st21nfc_probe(struct i2c_client *client,
 	}
 
 	client->irq = gpiod_to_irq(st21nfc_dev->gpiod_irq);
+
+#ifdef CONFIG_NFC_BOB1
+        /* Get NFC BOB1 NVMEM  Cell Handler */
+	st21nfc_dev->nvmem_nfc_bob1_cell = devm_nvmem_cell_get(dev, "nfc_bob1_cell");
+	if (IS_ERR(st21nfc_dev->nvmem_nfc_bob1_cell)) {
+		ret = PTR_ERR(st21nfc_dev->nvmem_nfc_bob1_cell);
+		pr_err("%s:Failed to get nfc bob1nvmem-cells %d\n", __func__, ret);
+	}
+#endif
 
 	/* I2C retry management: we want only 1 attempt at communication.
 	   As some busses need retry=1 and most need retry=0, we add optional DTS entry */
