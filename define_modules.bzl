@@ -4,7 +4,10 @@ load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 def define_modules(target, variant):
     tv = "{}_{}".format(target, variant)
     copts = []
-    deps = ["//msm-kernel:all_headers"]
+    deps = [
+               "//soc-repo:all_headers",
+               "//soc-repo:{}/drivers/pinctrl/qcom/pinctrl-msm".format(tv),
+           ]
 
     if target == "sun":
         copts.append("-DNFC_SECURE_PERIPHERAL_ENABLED")
@@ -25,7 +28,7 @@ def define_modules(target, variant):
         includes = [".", "linux", "nfc", "include/uapi/linux/nfc"],
         copts = copts,
         deps = deps,
-        kernel_build = "//msm-kernel:{}".format(tv),
+        kernel_build = "//soc-repo:{}_base_kernel".format(tv),
         visibility = ["//visibility:public"]
     )
 
