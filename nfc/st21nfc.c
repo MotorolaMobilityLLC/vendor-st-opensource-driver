@@ -1237,7 +1237,9 @@ static int st21nfc_recovery(struct st21nfc_device *st21nfc_dev) {
 #endif // WITH_PING_DURING_PROBE
 static const struct file_operations st21nfc_dev_fops = {
 	.owner = THIS_MODULE,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	.llseek = no_llseek,
+#endif
 	.read = st21nfc_dev_read,
 	.write = st21nfc_dev_write,
 	.open = st21nfc_dev_open,
