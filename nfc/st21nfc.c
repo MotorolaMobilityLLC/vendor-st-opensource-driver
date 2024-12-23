@@ -95,12 +95,6 @@ enum st21nfc_power_state {
 	ST21NFC_ACTIVE_RW = 2
 };
 
-//NFC BOB1 state
-enum nfc_bob1_state {
-	NFC_BOB1_DISABLE = 0,
-	NFC_BOB1_ENABLE,
-};
-
 static const char *const st21nfc_power_state_name[] = {
 
 	"IDLE", "ACTIVE", "ACTIVE_RW"
@@ -879,8 +873,7 @@ static long st21nfc_dev_ioctl(struct file *filp, unsigned int cmd,
 
 	case ST21NFC_SET_POLARITY_HIGH:
 	case ST21NFC_LEGACY_SET_POLARITY_HIGH:
-		pr_info(" ### ST21NFC_SET_POLARITY_HIGH NFC ON ###\n");
-                st21nfc_bob1_set(st21nfc_dev, (unsigned char)NFC_BOB1_ENABLE);
+		pr_info(" ### ST21NFC_SET_POLARITY_HIGH ###\n");
 #if 0
 		ret = st21nfc_clock_select(st21nfc_dev);
                 if (ret < 0)
@@ -1011,11 +1004,18 @@ static long st21nfc_dev_ioctl(struct file *filp, unsigned int cmd,
 		if (enable_debug_log)
 			pr_debug("%s use ESE %d : %d\n", __func__, ret, tmp);
 		break;
-
-	case ST21NFC_CLK_DISABLE_UNPREPARE:
-                pr_info(" ### ST21NFC_CLK_DISABLE_UNPREPARE nfc OFF ###\n");
-                st21nfc_bob1_set(st21nfc_dev, (unsigned char)NFC_BOB1_DISABLE);
+	case ST21NFC_ON_OFF:
+	        ret = __get_user(tmp, (u32 __user *)arg);
+		if (ret == 0) {
+#ifdef CONFIG_NFC_BOB1
+                  if (enable_debug_log)
+			pr_debug("%s set BoB : %d\n", __func__, (int)tmp);
+                  st21nfc_bob1_set(st21nfc_dev, (unsigned char)tmp);
+#endif
+		}
+                break;
 #if 0
+	case ST21NFC_CLK_DISABLE_UNPREPARE:
                 ret = st21nfc_clock_deselect(st21nfc_dev);
                 if (ret < 0) {
                         pr_err("%s : st21nfc_clock_deselect failed\n", __func__);
@@ -1024,9 +1024,8 @@ static long st21nfc_dev_ioctl(struct file *filp, unsigned int cmd,
                         wakeup_source_unregister(st21nfc_dev->irq_wakeup_source);
                         st21nfc_dev->irq_wakeup_source = NULL;
                }
-#endif
                break;
-
+#endif
 
 #ifdef NFC_SECURE_PERIPHERAL_ENABLED
 	case NFC_SECURE_ZONE:
