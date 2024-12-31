@@ -85,7 +85,7 @@
 static bool init_flag;
 #endif
 
-static bool enable_debug_log;
+static bool enable_debug_log=true;
 
 /*The enum is used to index a pw_states array, the values matter here*/
 enum st21nfc_power_state {
@@ -258,7 +258,7 @@ static void st21nfc_enable_irq(struct st21nfc_device *st21nfc_dev)
 static irqreturn_t st21nfc_dev_irq_handler(int irq, void *dev_id)
 {
 	struct st21nfc_device *st21nfc_dev = dev_id;
-
+	pr_info("st21nfc_dev_irq_handler");
 	if (st21nfc_dev->irq_wakeup_source != NULL)
 		__pm_wakeup_event(st21nfc_dev->irq_wakeup_source, WAKEUP_SRC_TIMEOUT);
 	st21nfc_disable_irq(st21nfc_dev);
