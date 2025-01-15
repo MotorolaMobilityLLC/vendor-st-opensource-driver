@@ -3,14 +3,25 @@ load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 
 def define_modules(target, variant):
     tv = "{}_{}".format(target, variant)
-    copts = []
-    deps = ["//msm-kernel:all_headers"]
 
+    copts = []
+    deps = select({
+        "//build/kernel/kleaf:socrepo_true": [
+            "//soc-repo:all_headers",
+            "//soc-repo:{}/drivers/pinctrl/qcom/pinctrl-msm".format(tv),
+        ],
+        "//build/kernel/kleaf:socrepo_false": ["//msm-kernel:all_headers"],
+    })
+    kernel_build = select({
+        "//build/kernel/kleaf:socrepo_true": "//soc-repo:{}_base_kernel".format(tv),
+        "//build/kernel/kleaf:socrepo_false": "//msm-kernel:{}".format(tv),
+    })
     if target == "sun":
         copts.append("-DNFC_SECURE_PERIPHERAL_ENABLED")
-        deps += ["//vendor/qcom/opensource/securemsm-kernel:smcinvoke_kernel_headers",
-                 "//vendor/qcom/opensource/securemsm-kernel:{}_smcinvoke_dlkm".format(tv)
-                ]
+        deps += [
+            "//vendor/qcom/opensource/securemsm-kernel:smcinvoke_kernel_headers",
+            "//vendor/qcom/opensource/securemsm-kernel:{}_smcinvoke_dlkm".format(tv),
+        ]
 
     if target == "canoe":
         copts.append("-DCONFIG_NFC_BOB1")
@@ -18,15 +29,16 @@ def define_modules(target, variant):
     ddk_module(
         name = "{}_stm_nfc_i2c".format(tv),
         out = "stm_nfc_i2c.ko",
-        srcs = ["nfc/st21nfc.c",
-                "nfc/st21nfc.h"
-               ],
+        srcs = [
+            "nfc/st21nfc.c",
+            "nfc/st21nfc.h",
+        ],
         hdrs = ["include/uapi/linux/nfc/st_uapi.h"],
         includes = [".", "linux", "nfc", "include/uapi/linux/nfc"],
         copts = copts,
         deps = deps,
-        kernel_build = "//msm-kernel:{}".format(tv),
-        visibility = ["//visibility:public"]
+        kernel_build = kernel_build,
+        visibility = ["//visibility:public"],
     )
 
     copy_to_dist_dir(
