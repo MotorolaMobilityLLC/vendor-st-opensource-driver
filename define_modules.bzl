@@ -25,6 +25,11 @@ def define_modules(target, variant):
 
     if target == "canoe":
         copts.append("-DCONFIG_NFC_BOB1")
+        copts.append("-DNFC_SECURE_PERIPHERAL_ENABLED")
+        deps += [
+            "//vendor/qcom/opensource/securemsm-kernel:smcinvoke_kernel_headers",
+            "//vendor/qcom/opensource/securemsm-kernel:{}_smcinvoke_dlkm".format(tv),
+        ]
 
     ddk_module(
         name = "{}_stm_nfc_i2c".format(tv),
