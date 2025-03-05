@@ -200,8 +200,8 @@ void st21nfc_bob1_set(struct st21nfc_device *st21nfc_dev, unsigned char arg)
 	struct i2c_client *client = st21nfc_dev->client;
 	struct device *dev = &client->dev;
 
-	if (IS_ERR(st21nfc_dev->nvmem_nfc_bob1_cell)) {
-		pr_err("%s: 'nfc_bob1' cell is not avilable to configure\n",
+	if (IS_ERR_OR_NULL(st21nfc_dev->nvmem_nfc_bob1_cell)) {
+		pr_info("%s: nfc_bob1 cell is not avilable to configure\n",
 			__func__);
 		return;
 	}
@@ -1553,7 +1553,7 @@ static int st21nfc_probe(struct i2c_client *client,
 #ifdef CONFIG_NFC_BOB1
         /* Get NFC BOB1 NVMEM  Cell Handler */
 	st21nfc_dev->nvmem_nfc_bob1_cell = devm_nvmem_cell_get(dev, "nfc_bob1_cell");
-	if (IS_ERR(st21nfc_dev->nvmem_nfc_bob1_cell)) {
+	if (IS_ERR_OR_NULL(st21nfc_dev->nvmem_nfc_bob1_cell)) {
 		ret = PTR_ERR(st21nfc_dev->nvmem_nfc_bob1_cell);
 		pr_err("%s:Failed to get nfc bob1nvmem-cells %d\n", __func__, ret);
 	}
