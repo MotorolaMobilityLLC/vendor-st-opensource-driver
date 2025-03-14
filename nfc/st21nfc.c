@@ -234,16 +234,13 @@ static int st21nfc_clock_deselect(struct st21nfc_device *st21nfc_dev)
 static void st21nfc_disable_irq(struct st21nfc_device *st21nfc_dev)
 {
 	unsigned long flags;
-	pr_info("st21nfc_disable_irq, spin_lock_irqsave start");
+
 	spin_lock_irqsave(&st21nfc_dev->irq_enabled_lock, flags);
-	pr_info("st21nfc_disable_irq, spin_lock_irqsave end");
 	if (st21nfc_dev->irq_enabled) {
 		disable_irq_nosync(st21nfc_dev->client->irq);
 		st21nfc_dev->irq_enabled = false;
 	}
-	pr_info("st21nfc_disable_irq, spin_unlock_irqrestore start");
 	spin_unlock_irqrestore(&st21nfc_dev->irq_enabled_lock, flags);
-	pr_info("st21nfc_disable_irq, spin_unlock_irqrestore end");
 }
 
 static void st21nfc_enable_irq(struct st21nfc_device *st21nfc_dev)
@@ -987,9 +984,7 @@ static unsigned int st21nfc_poll(struct file *file, poll_table *wait)
 			pr_debug("%s return ready\n", __func__);
 
 		mask = POLLIN | POLLRDNORM; /* signal data avail */
-		pr_debug("%s disable_irq start\n", __func__);
 		st21nfc_disable_irq(st21nfc_dev);
-		pr_debug("%s disable_irq end\n", __func__);
 	} else {
 		/* Wake_up_pin is low. Activate ISR  */
 		if (enable_debug_log)
@@ -997,9 +992,8 @@ static unsigned int st21nfc_poll(struct file *file, poll_table *wait)
 
 		st21nfc_enable_irq(st21nfc_dev);
 	}
-	pr_debug("%s mutex_unlock start\n", __func__);
+
 	mutex_unlock(&st21nfc_dev->irq_dir_mutex);
-	pr_debug("%s mutex_unlock end\n", __func__);
 	return mask;
 }
 
