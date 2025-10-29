@@ -1064,9 +1064,17 @@ static unsigned int st21nfc_poll(struct file *file, poll_table *wait)
 			pr_debug("%s enable irq\n", __func__);
 
 		st21nfc_enable_irq(st21nfc_dev);
+        pinlev = gpiod_get_value(st21nfc_dev->gpiod_irq);
+		if (pinlev != 0) {
+			if (enable_debug_log)
+				pr_debug("%s pin high after enable_IRQ\n", __func__);
+			// mask = POLLIN | POLLRDNORM; /* signal data avail */
+		}
 	}
 
 	mutex_unlock(&st21nfc_dev->irq_dir_mutex);
+	if ((st21nfc_dev->irq_wakeup_source != NULL) && (mask != 0))
+		__pm_wakeup_event(st21nfc_dev->irq_wakeup_source, WAKEUP_SRC_TIMEOUT);
 	return mask;
 }
 
